@@ -2,44 +2,52 @@ import numpy as np
 from scipy.signal import resample
 from scipy.fft import fft2, ifft2, fftshift
 import os
-from gc_plotting import plot_simulation_frame
-
+from gc_plotting import plot_simulation_frame, plot_path_integration_debug 
 
 np.random.seed(42)  # For reproducibility
 
+def get_periodic_displacement(r_map, last_peak, n):
+    """
+    Finds the shift of the pattern by tracking the blob closest to the 
+    last known peak location, handling periodic boundaries.
+    """
+    # 1. Mask the grid to only look near the last peak to avoid jumping to a different blob
+    mask_radius = 10  # Search radius in pixels (tune if blobs are very fast/large)
+    mask = np.zeros_like(r_map)
+    
+    # Create a mask that handles periodic wrapping
+    for i in range(-mask_radius, mask_radius + 1):
+        for j in range(-mask_radius, mask_radius + 1):
+            y_idx = (last_peak[0] + i) % n
+            x_idx = (last_peak[1] + j) % n
+            mask[y_idx, x_idx] = 1
+            
+    # Find the max value only within the masked area
+    masked_r = r_map * mask
+    curr_peak_flat = np.argmax(masked_r)
+    curr_peak = np.unravel_index(curr_peak_flat, r_map.shape)
+    
+    # 2. Calculate raw displacement
+    dy = curr_peak[0] - last_peak[0]
+    dx = curr_peak[1] - last_peak[1]
+    
+    # 3. Handle Periodic Boundaries (Phase Unwrapping)
+    # If the jump is larger than half the grid, it actually wrapped around
+    if dy > n / 2:
+        dy -= n
+    elif dy < -n / 2:
+        dy += n
+        
+    if dx > n / 2:
+        dx -= n
+    elif dx < -n / 2:
+        dx += n
+        
+    return dx, dy, curr_peak
+
 def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpiking, module):
     """
-    Grid Cell Dynamics - Periodic
-    
-    Parameters:
-    -----------
-    filename : str
-        Path to data file
-    n : int
-        Grid size
-    tau : float
-        Time constant
-    dt : float
-        Time step
-    beta : float
-        Beta parameter
-    gamma : float
-        gamma bar parameter
-    abar : float
-        A bar parameter
-    wtphase : int
-        Weight phase
-    alpha : float
-        Alpha parameter
-    useSpiking : bool
-        Whether to use spiking model
-    module : int
-        Module number
-        
-    Returns:
-    --------
-    spikes : list
-        List of spike matrices
+    Grid Cell Dynamics - Periodic with Path Integration
     """
     
     # Prepare output directory for sequential plots
@@ -60,10 +68,6 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         FileLoad = 1
     else:
         # If no data is loaded, use random trajectories.
-        # Random head directions between 0 and 2*pi with no more than 20 degree
-        # turn at each time step and trajectory based off of the previous time
-        # step's head direction
-        
         enclosureRadius = 2 * 100  # Two meters
         temp_velocity = np.random.rand() / 2
         position_x = np.zeros(100000)
@@ -80,12 +84,11 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
             # max velocity is .5 cm/ms
             temp_velocity = np.clip(temp_velocity + temp_rand, 0, 0.25)
             
-            # Don't let trajectory go outside of the boundary, if it would then randomly
-            # rotate to the left or right
+            # Don't let trajectory go outside of the boundary
             leftOrRight = 1 if np.random.rand() > 0.5 else -1
             
             while (np.sqrt((position_x[i-1] + np.cos(headDirection[i-1]) * temp_velocity)**2 +
-                          (position_y[i-1] + np.sin(headDirection[i-1]) * temp_velocity)**2) > enclosureRadius):
+                           (position_y[i-1] + np.sin(headDirection[i-1]) * temp_velocity)**2) > enclosureRadius):
                 headDirection[i-1] = headDirection[i-1] + leftOrRight * np.pi / 100
             
             position_x[i] = position_x[i-1] + np.cos(headDirection[i-1]) * temp_velocity
@@ -98,7 +101,6 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         # Linearly interpolate data to scale to .5 ms
         if dt != 0.5:
             if dt < 0.1:
-                # If data is too fine, then downsample to make computations faster
                 downsample_factor = int(np.floor(0.5 / dt))
                 position_x = position_x[::downsample_factor]
                 position_y = position_y[::downsample_factor]
@@ -128,7 +130,6 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     # INITIALIZE VARIABLES
     #----------------------
     
-    # padding for convolutions
     big = 2 * n
     dim = n // 2
     
@@ -137,10 +138,7 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     rfield = np.zeros((n, n))
     s = np.zeros((n, n))
     
-    # A placeholder for spiking activity
     spikes = [None] * sampling_length
-    
-    # A placeholder for a single neuron response
     sNeuronResponse = np.zeros(sampling_length)
     sNeuron = [n//2, n//2]
     
@@ -159,11 +157,11 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     X, Y = np.meshgrid(xbar, xbar)
     filt = abar * np.exp(-alphabar * (X**2 + Y**2)) - np.exp(-(X**2 + Y**2))
     
-    # The envelope function that determines the global feedforward input - Equation (5)
+    # The envelope function
     x_env = x[:, np.newaxis]
     venvelope = np.exp(-4 * (x_env**2 + x**2) / (n/2)**2)
     
-    # We create shifted weight matrices for each preferred firing direction
+    # Shifted weight matrices
     frshift = np.roll(filt, wtphase, axis=1)
     flshift = np.roll(filt, -wtphase, axis=1)
     fdshift = np.roll(filt, wtphase, axis=0)
@@ -179,7 +177,7 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     ftl_small = fft2(fftshift(flshift))
     ftr_small = fft2(fftshift(frshift))
     
-    # Block matrices used for identifying all neurons of one preferred firing direction
+    # Block matrices
     typeL = np.tile(np.array([[1, 0], [0, 0]]), (dim, dim))
     typeR = np.tile(np.array([[0, 0], [0, 1]]), (dim, dim))
     typeU = np.tile(np.array([[0, 1], [0, 0]]), (dim, dim))
@@ -199,27 +197,14 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     #------------------
     # BEGIN SIMULATION 
     #------------------
-    # plt.ion()  # Turn on interactive mode
-    # fig, ax = plt.subplots(figsize=(5.5, 4.5))
-    
-    # We run the simulation for 300 ms with aperiodic boundaries and 
-    # zero velocity to form the network, then we change the 
-    # envelope function to uniform input and continue the 
-    # simulation with periodic boundary conditions
-    
+    # First loop: Formation / Healing phase (stationary or small movement)
     for iteration in range(1000):
-        
-        #----------------------------------------
-        # COMPUTE NEURAL POPULATION ACTIVITY 
-        #----------------------------------------
         if iteration == 800:
             venvelope = np.ones((n, n))
         
-        # Break global input into its directional components - Equation (4)
         rfield = venvelope * ((1 + vel * right) * typeR + (1 + vel * left) * typeL +
                              (1 + vel * up) * typeU + (1 + vel * down) * typeD)
         
-        # Convolute population activity with shifted symmetric weights.
         convolution = np.real(ifft2(
             fft2(r * typeR, s=(big, big)) * ftr +
             fft2(r * typeL, s=(big, big)) * ftl +
@@ -227,44 +212,37 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
             fft2(r * typeU, s=(big, big)) * ftu
         ))
         
-        # Add feedforward inputs to the shifted population activity
         rfield = rfield + convolution[n//2:big-n//2, n//2:big-n//2]
-        
-        # Neural Transfer Function
         fr = np.maximum(0, rfield)
         
-        # Neuron dynamics - Equation (1)
         r_old = r
         r_new = np.minimum(10, (dt/tau) * (5*fr - r_old) + r_old)
         r = r_new
-        
-        # Update the plot every 100 timesteps
-        # if iteration % 100 == 0:
-            # ax.clear()
-            # im = ax.imshow(r_new, cmap='hot', vmin=0, vmax=2)
-            # ax.set_title(f'Neural Population Activity (Iteration {iteration}/1000)')
-            # if iteration == 0:
-            #     plt.colorbar(im, ax=ax)
-            # plt.draw()
-            # plt.pause(0.001)
     
     #----------------------------------------------------------
     # COMPUTE NEURAL POPULATION ACTIVITY WITH PERIODIC BOUNDARY
-    #-----------------------------------------------------------
+    #----------------------------------------------------------
     
-    # increment is the position in the trajectory data. start at 2 to compute velocity
     increment = 1
     s = r.copy()
     
-    # Create figure for trajectory tracking
-    # plt.close('all')
+    # --- PATH INTEGRATION INITIALIZATION ---
+    integrated_path_x = np.zeros(sampling_length)
+    integrated_path_y = np.zeros(sampling_length)
+    curr_integ_x = 0.0
+    curr_integ_y = 0.0
     
-    
+    # Initialize tracker at the peak of the current stable pattern
+    start_peak_flat = np.argmax(r)
+    last_peak_pos = np.unravel_index(start_peak_flat, r.shape)
+    # ----------------------------------------
+
+    # Trajectory Loop
     for iteration in range(sampling_length - 20):
         
         theta_v = headDirection[increment]
         vel = np.sqrt((position_x[increment] - position_x[increment-1])**2 +
-                     (position_y[increment] - position_y[increment-1])**2)
+                      (position_y[increment] - position_y[increment-1])**2)
         left = -np.cos(theta_v)
         right = np.cos(theta_v)
         up = np.sin(theta_v)
@@ -272,13 +250,11 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         
         increment += 1
         
-        # Break feedforward input into its directional components - Equation (4)
         rfield = venvelope * ((1 + alpha * vel * right) * typeR +
                              (1 + alpha * vel * left) * typeL +
                              (1 + alpha * vel * up) * typeU +
                              (1 + alpha * vel * down) * typeD)
         
-        # Convolute population activity with shifted symmetric weights.
         convolution = np.real(ifft2(
             fft2(r * typeR) * ftr_small +
             fft2(r * typeL) * ftl_small +
@@ -286,36 +262,39 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
             fft2(r * typeU) * ftu_small
         ))
         
-        # Add feedforward inputs to the shifted population activity
         rfield = rfield + convolution
-        
-        # Neural Transfer Function
         fr = np.maximum(0, rfield)
         
-        # Neuron dynamics (Eq. 1)
         r_old = r
         r_new = np.minimum(10, (dt/tau) * (5*fr - r_old) + r_old)
         r = r_new
         
-        # Track single neuron response
+        # --- PATH INTEGRATION TRACKING ---
+        # Calculate how much the pattern moved this step
+        dx, dy, new_peak_pos = get_periodic_displacement(r_new, last_peak_pos, n)
+        
+        # Accumulate (careful with X/Y orientation relative to your grid)
+        # Often in matrices, index 0 is Y (rows) and index 1 is X (cols).
+        # We will store them naturally first:
+        curr_integ_y -= dy  # rows
+        curr_integ_x += dx  # cols
+        
+        integrated_path_x[increment] = curr_integ_x
+        integrated_path_y[increment] = curr_integ_y
+        last_peak_pos = new_peak_pos
+        # ---------------------------------
+        
         if fr[sNeuron[0], sNeuron[1]] > 0:
             sNeuronResponse[increment] = 1
         
         if useSpiking:
             spike = rfield * dt > np.random.rand(n, n)
-            
-            # Neurons decay according to Equation (6)
             s = s + (dt/tau) * (-s + (tau/dt) * spike)
             r = s
             spikes[increment] = spike.astype(float)
-            
-            # Track a single neuron response
             sNeuronResponse[increment] = spike[sNeuron[0], sNeuron[1]]
         
-        #-----------------------------------------
-        # PLOTS
-        #-----------------------------------------
-        
+        # Plotting (Using your existing function)
         if iteration % 1000 == 0:
             plot_simulation_frame(
                 r_new=r_new,
@@ -330,22 +309,49 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
                 frame_idx=frame_idx
             )
             frame_idx += 1
+
+    #----------------------
+    # POST-PROCESSING (Least Squares Optimization)
+    #----------------------
+    valid_len = increment
+
+    # We want to fit: Rat_Position = slope * Network_Position + intercept
+    # This finds the best Scale (slope) and Starting Offset (intercept) automatically.
+
+    # 1. Fit X-Axis
+    slope_x, intercept_x = np.polyfit(integrated_path_x[:valid_len], position_x[:valid_len], 1)
+    integrated_path_x_cm = integrated_path_x * slope_x + intercept_x
+
+    # 2. Fit Y-Axis
+    # We fit them separately to account for potential anisotropy (stretching) in the grid
+    slope_y, intercept_y = np.polyfit(integrated_path_y[:valid_len], position_y[:valid_len], 1)
+    integrated_path_y_cm = integrated_path_y * slope_y + intercept_y
+
+    # 3. Calculate Scale Factor for reporting
+    # The true scale factor is the average of the X and Y slopes magnitude
+    # (Note: slope_y might be negative if the axis was inverted, handling the flip automatically)
+    final_scale_factor = (np.abs(slope_x) + np.abs(slope_y)) / 2.0
+    print(f"Optimized Scale Factor: {final_scale_factor:.4f}")
+    print(f"X Offset: {intercept_x:.2f}, Y Offset: {intercept_y:.2f}")
+
+    # 4. Calculate Error
+    err_x = position_x[:valid_len] - integrated_path_x_cm[:valid_len]
+    err_y = position_y[:valid_len] - integrated_path_y_cm[:valid_len]
+    error = np.sqrt(err_x**2 + err_y**2)
     
-    return spikes
-
-
-if __name__ == "__main__":
-    # Example usage
-    spikes = gc_periodic(
-        filename='trajectory_data.npz',
-        n=100,
-        tau=10,
-        dt=0.5,
-        beta=1.0,
-        gamma=1.0,
-        abar=1.5,
-        wtphase=10,
-        alpha=0.1,
-        useSpiking=False,
-        module=1
+    #----------------------
+    # DEBUG PLOTTING
+    #----------------------
+    plot_path_integration_debug(
+        position_x=position_x,
+        position_y=position_y,
+        integrated_path_x_cm=integrated_path_x_cm,
+        integrated_path_y_cm=integrated_path_y_cm,
+        valid_len=valid_len,
+        dt=dt,
+        scale_factor=final_scale_factor,
+        module=module,
+        output_dir=output_dir
     )
+    
+    return spikes, integrated_path_x_cm, integrated_path_y_cm, error

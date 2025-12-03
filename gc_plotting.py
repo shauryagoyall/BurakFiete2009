@@ -95,3 +95,79 @@ def plot_simulation_frame(
     plt.close(fig)
     
     print(f"Saved frame {frame_idx:06d} to {save_path}")
+
+
+def plot_path_integration_debug(
+    position_x,
+    position_y,
+    integrated_path_x_cm,
+    integrated_path_y_cm,
+    valid_len,
+    dt,
+    scale_factor,
+    module,
+    output_dir
+):
+    """
+    Create and save a debug plot comparing actual trajectory with network path integration.
+    
+    Parameters:
+    -----------
+    position_x : ndarray
+        Actual X coordinates
+    position_y : ndarray
+        Actual Y coordinates
+    integrated_path_x_cm : ndarray
+        Network-integrated X path (in cm)
+    integrated_path_y_cm : ndarray
+        Network-integrated Y path (in cm)
+    valid_len : int
+        Number of valid data points
+    dt : float
+        Time step (ms)
+    scale_factor : float
+        Optimized scale factor
+    module : int
+        Module number
+    output_dir : str
+        Directory to save plot
+        
+    Returns:
+    --------
+    None (saves figure to disk)
+    """
+    fig, axes = plt.subplots(1, 3, figsize=(15, 5))
+    
+    # 1. 2D Trajectory Comparison (Top View)
+    axes[0].plot(position_x[:valid_len], position_y[:valid_len], 'k-', label='Actual Rat Path', alpha=0.6)
+    axes[0].plot(integrated_path_x_cm[:valid_len], integrated_path_y_cm[:valid_len], 'b--', label='Network Integration', alpha=0.8)
+    axes[0].set_title(f"2D Trajectory (Scale Factor: {scale_factor:.2f})")
+    axes[0].set_xlabel("X (cm)")
+    axes[0].set_ylabel("Y (cm)")
+    axes[0].legend()
+    axes[0].grid(True)
+
+    # 2. X Position over Time
+    time_axis = np.arange(valid_len) * dt * 0.001  # Convert steps to seconds
+    axes[1].plot(time_axis, position_x[:valid_len], 'k-', label='Actual X')
+    axes[1].plot(time_axis, integrated_path_x_cm[:valid_len], 'b--', label='Integrated X')
+    axes[1].set_title("X Position vs Time")
+    axes[1].set_xlabel("Time (s)")
+    axes[1].set_ylabel("X (cm)")
+    axes[1].legend()
+
+    # 3. Y Position over Time
+    axes[2].plot(time_axis, position_y[:valid_len], 'k-', label='Actual Y')
+    axes[2].plot(time_axis, integrated_path_y_cm[:valid_len], 'b--', label='Integrated Y')
+    axes[2].set_title("Y Position vs Time")
+    axes[2].set_xlabel("Time (s)")
+    axes[2].set_ylabel("Y (cm)")
+    axes[2].legend()
+
+    plt.tight_layout()
+    
+    # Save the debug plot
+    debug_plot_path = os.path.join(output_dir, f'debug_path_integration_mod{module}.png')
+    plt.savefig(debug_plot_path)
+    print(f"Debug plot saved to: {debug_plot_path}")
+    plt.close(fig)
