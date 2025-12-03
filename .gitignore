@@ -1,1 +1,4 @@
 *.pyc
+*.png
+plots/simulation/.DS_Store
+plots/.DS_Store

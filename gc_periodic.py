@@ -1,8 +1,8 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from scipy.signal import resample
 from scipy.fft import fft2, ifft2, fftshift
 import os
+from gc_plotting import plot_simulation_frame
 
 
 np.random.seed(42)  # For reproducibility
@@ -66,14 +66,14 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         
         enclosureRadius = 2 * 100  # Two meters
         temp_velocity = np.random.rand() / 2
-        position_x = np.zeros(1000000)
-        position_y = np.zeros(1000000)
-        headDirection = np.zeros(1000000)
+        position_x = np.zeros(100000)
+        position_y = np.zeros(100000)
+        headDirection = np.zeros(100000)
         position_x[0] = 0
         position_y[0] = 0
         headDirection[0] = np.random.rand() * 2 * np.pi
         
-        for i in range(1, 1000000):
+        for i in range(1, 100000):
             # max acceleration is .1 cm/ms^2
             temp_rand = np.clip(np.random.normal(0, 0.05), -0.2, 0.2)
             
@@ -317,39 +317,18 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         #-----------------------------------------
         
         if iteration % 1000 == 0:
-            fig, (ax1, ax2) = plt.subplots(1, 2)
-            
-            # Plot neural population activity
-            im1 = ax1.imshow(r_new, cmap='hot', vmin=0, vmax=2)
-            ax1.set_title(f'Neural Population Activity\n(Step {iteration}/{sampling_length-20})')
-            ax1.set_aspect('equal', adjustable='box')
-            ax1.plot(sNeuron[1], sNeuron[0], 'bo', markersize=6, label='Tracked Neuron')
-            
-            
-            # Single neuron response plot
-            tempx = sNeuronResponse[:increment] * position_x[:increment]
-            tempy = sNeuronResponse[:increment] * position_y[:increment]
-            tempx = tempx[tempx != 0]
-            tempy = tempy[tempy != 0]
-            
-            ax2.plot(position_x[:increment], position_y[:increment], '-', 
-                    color='gray', alpha=0.5, linewidth=0.5, label='Trajectory')
-            ax2.plot(position_x[increment-1], position_y[increment-1], 'ro', 
-                    markersize=8, label='Current position')
-            if len(tempx) > 0:
-                ax2.plot(tempx, tempy, 'bx', markersize=4, label='Neuron spikes')
-            ax2.set_title(f'Neuron {sNeuron} Response')
-            ax2.set_aspect('equal', adjustable='box')
-            ax2.set_xlim([position_x.min(), position_x.max()])
-            ax2.set_ylim([position_y.min(), position_y.max()])
-            ax2.legend(loc='upper right', fontsize=8)
-            ax2.grid(True, alpha=0.3)
-            
-            plt.tight_layout()
-            # Save sequential frame for GIF creation
-            save_path = os.path.join(output_dir, f"frame_{frame_idx:06d}.png")
-            fig.savefig(save_path, dpi=150)
-            plt.close(fig)
+            plot_simulation_frame(
+                r_new=r_new,
+                sNeuron=sNeuron,
+                sNeuronResponse=sNeuronResponse,
+                position_x=position_x,
+                position_y=position_y,
+                increment=increment,
+                iteration=iteration,
+                sampling_length=sampling_length,
+                module=module,
+                frame_idx=frame_idx
+            )
             frame_idx += 1
     
     return spikes
