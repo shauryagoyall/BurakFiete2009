@@ -5,7 +5,9 @@ from scipy.fft import fft2, ifft2, fftshift
 import os
 
 
-def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpiking):
+np.random.seed(42)  # For reproducibility
+
+def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpiking, module):
     """
     Grid Cell Dynamics - Periodic
     
@@ -31,6 +33,8 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         Alpha parameter
     useSpiking : bool
         Whether to use spiking model
+    module : int
+        Module number
         
     Returns:
     --------
@@ -38,6 +42,11 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         List of spike matrices
     """
     
+    # Prepare output directory for sequential plots
+    output_dir = os.path.join('plots', 'simulation', f'module_{module}')
+    os.makedirs(output_dir, exist_ok=True)
+    frame_idx = 0
+
     #---------------------
     # LOAD AND CLEAN DATA
     #---------------------
@@ -307,7 +316,7 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         # PLOTS
         #-----------------------------------------
         
-        if iteration % 10000 == 0:
+        if iteration % 1000 == 0:
             fig, (ax1, ax2) = plt.subplots(1, 2)
             
             # Plot neural population activity
@@ -337,38 +346,11 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
             ax2.grid(True, alpha=0.3)
             
             plt.tight_layout()
-            plt.show()
+            # Save sequential frame for GIF creation
+            save_path = os.path.join(output_dir, f"frame_{frame_idx:06d}.png")
+            fig.savefig(save_path, dpi=150)
             plt.close(fig)
-    
-    # # Final plot
-    # print("\nSimulation complete! Displaying final results...")
-    # ax1.clear()
-    # ax2.clear()
-    
-    # # Final neural activity
-    # im1 = ax1.imshow(r_new, cmap='hot', vmin=0, vmax=2)
-    # ax1.set_title('Final Neural Population Activity')
-    # fig.colorbar(im1, ax=ax1)
-    
-    # # Final trajectory with all spikes
-    # tempx = sNeuronResponse * position_x
-    # tempy = sNeuronResponse * position_y
-    # tempx = tempx[tempx != 0]
-    # tempy = tempy[tempy != 0]
-    
-    # ax2.plot(position_x, position_y, '-', color='gray', alpha=0.5, linewidth=0.5, label='Full trajectory')
-    # if len(tempx) > 0:
-    #     ax2.plot(tempx, tempy, 'b.', markersize=2, label=f'Neuron spikes (n={len(tempx)})')
-    # ax2.set_title('Complete Single Neuron Response')
-    # ax2.set_aspect('equal', adjustable='box')
-    # ax2.set_xlabel('Position X')
-    # ax2.set_ylabel('Position Y')
-    # ax2.legend()
-    # ax2.grid(True, alpha=0.3)
-    
-    # plt.tight_layout()
-    # plt.ioff()  # Turn off interactive mode
-    # plt.show()
+            frame_idx += 1
     
     return spikes
 
@@ -381,9 +363,10 @@ if __name__ == "__main__":
         tau=10,
         dt=0.5,
         beta=1.0,
-        alphabar=1.0,
+        gamma=1.0,
         abar=1.5,
         wtphase=10,
         alpha=0.1,
-        useSpiking=False
+        useSpiking=False,
+        module=1
     )
