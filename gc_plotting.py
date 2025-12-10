@@ -94,7 +94,7 @@ def plot_simulation_frame(
     fig.savefig(save_path, dpi=150, bbox_inches='tight')
     plt.close(fig)
     
-    print(f"Saved frame {frame_idx:06d} to {save_path}")
+    # print(f"Saved frame {frame_idx:06d} to {save_path}")
 
 
 def plot_path_integration_debug(
@@ -197,7 +197,7 @@ def plot_error_over_time(error, dt, module, output_dir):
     
     fig, ax = plt.subplots(figsize=(10, 6))
     
-    ax.plot(time_axis, error, 'r-', linewidth=1.5, label='Position Error')
+    ax.plot(time_axis[200:], error[200:]    , 'r-', linewidth=1.5, label='Position Error')
     ax.set_xlabel('Time (s)', fontsize=12)
     ax.set_ylabel('Error (cm)', fontsize=12)
     ax.set_title(f'Path Integration Error Over Time - Module {module}', fontsize=14)

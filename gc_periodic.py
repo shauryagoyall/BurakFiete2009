@@ -3,7 +3,7 @@ from scipy.signal import resample
 from scipy.fft import fft2, ifft2, fftshift
 import os
 from gc_plotting import plot_simulation_frame, plot_path_integration_debug, plot_error_over_time 
-
+import tqdm
 
 
 def get_band_kernel(angle_degrees, X_grid, Y_grid, abar, alphabar):
@@ -265,7 +265,8 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     # ----------------------------------------
 
     # Trajectory Loop
-    for iteration in range(sampling_length - 20):
+    
+    for iteration in tqdm.tqdm(range(sampling_length - 20)  ):
         
         theta_v = headDirection[increment]
         vel = np.sqrt((position_x[increment] - position_x[increment-1])**2 +
