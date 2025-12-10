@@ -365,6 +365,7 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     # 4. Calculate Error
     err_x = position_x[:valid_len] - integrated_path_x_cm[:valid_len]
     err_y = position_y[:valid_len] - integrated_path_y_cm[:valid_len]
+    print(position_x[:], integrated_path_x_cm[: ])
     error = np.sqrt(err_x**2 + err_y**2)
     
     #----------------------
@@ -390,4 +391,4 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         output_dir=output_dir
     )
     
-    return spikes, integrated_path_x_cm, integrated_path_y_cm, error
+    return spikes, integrated_path_x_cm, integrated_path_y_cm, error, position_x, position_y
