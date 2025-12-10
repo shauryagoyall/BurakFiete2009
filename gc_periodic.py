@@ -2,9 +2,29 @@ import numpy as np
 from scipy.signal import resample
 from scipy.fft import fft2, ifft2, fftshift
 import os
-from gc_plotting import plot_simulation_frame, plot_path_integration_debug 
+from gc_plotting import plot_simulation_frame, plot_path_integration_debug, plot_error_over_time 
 
-np.random.seed(42)  # For reproducibility
+
+
+def get_band_kernel(angle_degrees, X_grid, Y_grid, abar, alphabar):
+    """
+    Generates an anisotropic interaction kernel (band cell weights) 
+    rotated by a specific angle.
+    """
+    # Convert angle to radians
+    theta = np.deg2rad(angle_degrees)
+    
+    # 1. Rotate the coordinates
+    # We only need the X-component of the rotation for the band profile
+    X_rot = X_grid * np.cos(theta) + Y_grid * np.sin(theta)
+    
+    # 2. Create the Anisotropic Mexican Hat (1D profile along rotated axis)
+    # The kernel varies along the direction of theta, creating waves.
+    # The "stripes" will be perpendicular to this direction.
+    filt = abar * np.exp(-alphabar * X_rot**2) - np.exp(-X_rot**2)
+    
+    return filt
+
 
 def get_periodic_displacement(r_map, last_peak, n):
     """
@@ -45,10 +65,14 @@ def get_periodic_displacement(r_map, last_peak, n):
         
     return dx, dy, curr_peak
 
-def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpiking, module):
+def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpiking, module, GET_BAND=False, BAND_ANGLE=None, duration= 100000):
     """
     Grid Cell Dynamics - Periodic with Path Integration
     """
+    
+    np.random.seed(42)  # For reproducibility
+    if GET_BAND:
+        assert BAND_ANGLE is not None, "BAND_ANGLE must be specified when GET_BAND is True."
     
     # Prepare output directory for sequential plots
     output_dir = os.path.join('plots', 'simulation', f'module_{module}')
@@ -70,14 +94,14 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         # If no data is loaded, use random trajectories.
         enclosureRadius = 2 * 100  # Two meters
         temp_velocity = np.random.rand() / 2
-        position_x = np.zeros(100000)
-        position_y = np.zeros(100000)
-        headDirection = np.zeros(100000)
+        position_x = np.zeros(duration)
+        position_y = np.zeros(duration)
+        headDirection = np.zeros(duration)
         position_x[0] = 0
         position_y[0] = 0
         headDirection[0] = np.random.rand() * 2 * np.pi
         
-        for i in range(1, 100000):
+        for i in range(1, duration):
             # max acceleration is .1 cm/ms^2
             temp_rand = np.clip(np.random.normal(0, 0.05), -0.2, 0.2)
             
@@ -155,7 +179,10 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
     
     # The center surround, locally inhibitory weight matrix - Equation (3)
     X, Y = np.meshgrid(xbar, xbar)
-    filt = abar * np.exp(-alphabar * (X**2 + Y**2)) - np.exp(-(X**2 + Y**2))
+    if GET_BAND == True:
+        filt = get_band_kernel(BAND_ANGLE, X, Y, abar, alphabar)
+    else:
+        filt = abar * np.exp(-alphabar * (X**2 + Y**2)) - np.exp(-(X**2 + Y**2))
     
     # The envelope function
     x_env = x[:, np.newaxis]
@@ -350,6 +377,14 @@ def gc_periodic(filename, n, tau, dt, beta, gamma, abar, wtphase, alpha, useSpik
         valid_len=valid_len,
         dt=dt,
         scale_factor=final_scale_factor,
+        module=module,
+        output_dir=output_dir
+    )
+    
+    # Plot error over time
+    plot_error_over_time(
+        error=error,
+        dt=dt,
         module=module,
         output_dir=output_dir
     )

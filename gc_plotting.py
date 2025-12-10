@@ -60,8 +60,8 @@ def plot_simulation_frame(
     # Create figure with two subplots
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 5))
     
-    # Left subplot: Neural population activity
-    im1 = ax1.imshow(r_new, cmap='hot', vmin=0, vmax=2)
+    # Left subplot: Neural population activity.   vmin=0, vmax=2
+    im1 = ax1.imshow(r_new, cmap='hot',)
     ax1.set_title(f'Neural Population Activity\n(Step {iteration}/{sampling_length-20})')
     ax1.set_aspect('equal', adjustable='box')
     ax1.plot(sNeuron[1], sNeuron[0], 'bo', markersize=6, label='Tracked Neuron')
@@ -170,4 +170,49 @@ def plot_path_integration_debug(
     debug_plot_path = os.path.join(output_dir, f'debug_path_integration_mod{module}.png')
     plt.savefig(debug_plot_path)
     print(f"Debug plot saved to: {debug_plot_path}")
+    plt.close(fig)
+
+
+def plot_error_over_time(error, dt, module, output_dir):
+    """
+    Plot the cumulative path integration error over time.
+    
+    Parameters:
+    -----------
+    error : ndarray
+        Array of position errors at each time step (cm)
+    dt : float
+        Time step (ms)
+    module : int
+        Module number
+    output_dir : str
+        Directory to save plot
+        
+    Returns:
+    --------
+    None (saves figure to disk)
+    """
+    valid_len = len(error)
+    time_axis = np.arange(valid_len) * dt * 0.001  # Convert to seconds
+    
+    fig, ax = plt.subplots(figsize=(10, 6))
+    
+    ax.plot(time_axis, error, 'r-', linewidth=1.5, label='Position Error')
+    ax.set_xlabel('Time (s)', fontsize=12)
+    ax.set_ylabel('Error (cm)', fontsize=12)
+    ax.set_title(f'Path Integration Error Over Time - Module {module}', fontsize=14)
+    ax.grid(True, alpha=0.3)
+    ax.legend(fontsize=10)
+    
+    # Add mean error line
+    mean_error = np.mean(error)
+    ax.axhline(y=mean_error, color='b', linestyle='--', linewidth=1, 
+               label=f'Mean Error: {mean_error:.2f} cm')
+    ax.legend(fontsize=10)
+    
+    plt.tight_layout()
+    
+    error_plot_path = os.path.join(output_dir, f'error_over_time_mod{module}.png')
+    plt.savefig(error_plot_path, dpi=150)
+    print(f"Error plot saved to: {error_plot_path}")
     plt.close(fig)
