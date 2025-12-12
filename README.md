@@ -2,6 +2,9 @@
 
 Python implementation the continuous attractor network framework described in Y. Burak and I. R. Fiete. [Accurate path integration in continuous attractor network models of grid cells](https://fietelabmit.files.wordpress.com/2018/12/gcdynamics_burakfiete09_plos.pdf). PLoS Comp. Biol. 5(2) (2009).
 
+![Example Plot](plots/simulation/example_plot.png)
+
+
 ## Project Structure
 
 ```
