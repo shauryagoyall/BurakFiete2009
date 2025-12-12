@@ -10,6 +10,120 @@ import matplotlib.pyplot as plt
 import os
 
 
+def plot_connectivity_matrix(weight_matrix, abar, alphabar, module, output_dir='plots/connectivity'):
+    """
+    Plot and save the connectivity/weight matrix as a heatmap.
+    
+    Parameters:
+    -----------
+    weight_matrix : ndarray
+        The weight matrix (e.g., filt or band kernel) (n x n)
+    abar : float
+        Weight amplitude parameter
+    alphabar : float
+        Inhibition strength parameter
+    module : int
+        Module number
+    output_dir : str
+        Base directory to save plot
+        
+    Returns:
+    --------
+    None (saves figure to disk)
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    fig, axes = plt.subplots(1, 2, figsize=(14, 6))
+    
+    # Plot 1: Full heatmap - center colormap on 0
+    vmax = max(abs(weight_matrix.min()), abs(weight_matrix.max()))
+    vmin = -vmax
+    im0 = axes[0].imshow(weight_matrix, cmap='RdBu_r', aspect='auto', vmin=vmin, vmax=vmax)
+    axes[0].set_title(f'Connectivity Matrix\n(Module {module}, abar={abar:.2f}, alphabar={alphabar:.3f})', 
+                     fontsize=12, fontweight='bold')
+    axes[0].set_xlabel('X position (neurons)')
+    axes[0].set_ylabel('Y position (neurons)')
+    cbar0 = plt.colorbar(im0, ax=axes[0])
+    cbar0.set_label('Weight strength')
+    
+    # Plot 2: Center profile (1D slice through center)
+    n = weight_matrix.shape[0]
+    center = n // 2
+    horizontal_slice = weight_matrix[center, :]
+    vertical_slice = weight_matrix[:, center]
+    
+    axes[1].plot(horizontal_slice, 'b-', linewidth=2, label='Horizontal (through center)')
+    axes[1].plot(vertical_slice, 'r--', linewidth=2, label='Vertical (through center)')
+    axes[1].axhline(y=0, color='k', linestyle='-', linewidth=0.5, alpha=0.3)
+    axes[1].axvline(x=center, color='gray', linestyle=':', linewidth=1, alpha=0.5)
+    axes[1].set_title('1D Weight Profiles Through Center', fontsize=12, fontweight='bold')
+    axes[1].set_xlabel('Distance from center (neurons)')
+    axes[1].set_ylabel('Weight value')
+    axes[1].legend(fontsize=10)
+    axes[1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    
+    filename = os.path.join(output_dir, f'connectivity_matrix_mod{module}_abar{abar:.2f}.png')
+    fig.savefig(filename, dpi=150, bbox_inches='tight')
+    print(f"Connectivity plot saved: {filename}")
+    plt.close(fig)
+
+
+def plot_all_shifted_kernels(filt, wtphase, module, output_dir='plots/connectivity'):
+    """
+    Plot all 4 directionally-shifted weight kernels (L, R, U, D).
+    
+    Parameters:
+    -----------
+    filt : ndarray
+        Base filter/connectivity matrix (n x n)
+    wtphase : int
+        Phase shift amount for directional kernels
+    module : int
+        Module number
+    output_dir : str
+        Directory to save plot
+        
+    Returns:
+    --------
+    None (saves figure to disk)
+    """
+    os.makedirs(output_dir, exist_ok=True)
+    
+    n = filt.shape[0]
+    
+    # Create shifted versions
+    frshift = np.roll(filt, wtphase, axis=1)   # Right
+    flshift = np.roll(filt, -wtphase, axis=1)  # Left
+    fdshift = np.roll(filt, wtphase, axis=0)   # Down
+    fushift = np.roll(filt, -wtphase, axis=0)  # Up
+    
+    fig, axes = plt.subplots(2, 2, figsize=(12, 12))
+    kernels = [('Left', flshift), ('Right', frshift), ('Up', fushift), ('Down', fdshift)]
+    
+    vmin = min(filt.min(), frshift.min(), flshift.min(), fdshift.min(), fushift.min())
+    vmax = max(filt.max(), frshift.max(), flshift.max(), fdshift.max(), fushift.max())
+    
+    for idx, (name, kernel) in enumerate(kernels):
+        ax = axes[idx // 2, idx % 2]
+        im = ax.imshow(kernel, cmap='RdBu_r', vmin=vmin, vmax=vmax, aspect='auto')
+        ax.set_title(f'Direction: {name} (shift={wtphase if name in ["Right", "Down"] else -wtphase})',
+                    fontsize=11, fontweight='bold')
+        ax.set_xlabel('X (neurons)')
+        ax.set_ylabel('Y (neurons)')
+        plt.colorbar(im, ax=ax, label='Weight')
+    
+    plt.suptitle(f'Directionally-Shifted Kernels - Module {module}\n(wtphase={wtphase})',
+                fontsize=14, fontweight='bold', y=1.00)
+    plt.tight_layout()
+    
+    filename = os.path.join(output_dir, f'shifted_kernels_mod{module}_wtphase{wtphase}.png')
+    fig.savefig(filename, dpi=150, bbox_inches='tight')
+    print(f"Shifted kernels plot saved: {filename}")
+    plt.close(fig)
+
+
 def plot_simulation_frame(
     r_new,
     sNeuron,
@@ -62,7 +176,7 @@ def plot_simulation_frame(
     
     # Left subplot: Neural population activity.   vmin=0, vmax=2
     im1 = ax1.imshow(r_new, cmap='hot',)
-    ax1.set_title(f'Neural Population Activity\n(Step {iteration}/{sampling_length-20})')
+    ax1.set_title(f'Neural Population Activity  a = {module}\n(Step {iteration}/{sampling_length-20})')
     ax1.set_aspect('equal', adjustable='box')
     ax1.plot(sNeuron[1], sNeuron[0], 'bo', markersize=6, label='Tracked Neuron')
     ax1.legend(loc='upper right', fontsize=8)

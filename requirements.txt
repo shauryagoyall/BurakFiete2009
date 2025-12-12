@@ -1,0 +1,23 @@
+# Grid Cell Path Integration Simulator
+# Python Package Requirements
+
+# Core Scientific Computing
+numpy>=1.21.0
+scipy>=1.7.0
+
+# Visualization
+matplotlib>=3.4.0
+
+# Progress Bars
+tqdm>=4.62.0
+
+# Jupyter Notebook Support (optional but recommended)
+jupyter>=1.0.0
+notebook>=6.4.0
+ipykernel>=6.0.0
+
+# Optional: For creating animations
+# Pillow>=8.3.0  # For GIF creation
+# imageio>=2.9.0  # Alternative animation library
+# ffmpeg-python>=0.2.0  # For MP4 creation (requires ffmpeg installed)
+
