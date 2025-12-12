@@ -4,11 +4,10 @@ Python implementation the continuous attractor network framework described in Y.
 
 ![Example Plot](plots/simulation/example_plot.png)
 
-
 ## Project Structure
 
 ```
-gridcellscan/
+BurakFiete2009/
 ├── gc_periodic.py          # Main simulation engine
 ├── gc_plotting.py          # Visualization utilities
 ├── create_gif.py           # Animation creation from frames
@@ -33,7 +32,7 @@ gridcellscan/
 1. **Clone the repository**:
    ```bash
    git clone <repository-url>
-   cd gridcellscan
+   cd BurakFiete2009
    ```
 
 2. **Create a virtual environment** (recommended):
@@ -247,9 +246,5 @@ For questions or issues, please open an issue on GitHub
 
 ## Acknowledgments
 
-- Original model by Burak & Fiete (2009)
 - Implementation inspired by https://github.com/FieteLab/Grid-cell-continuous-attractor-models
 
----
-
-**Note**: This is a research tool. Parameter values are based on published literature but may require tuning for specific applications.
