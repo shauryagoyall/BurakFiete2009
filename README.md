@@ -1,19 +1,6 @@
-# Grid Cell Path Integration Simulator
+# Grid cell Continuous Attractor Model
 
-A computational model of grid cell dynamics with path integration capabilities, implementing the continuous attractor network framework described in Burak & Fiete (2009).
-
-## Overview
-
-This repository contains a Python implementation of grid cell networks that perform path integration - tracking an agent's position by integrating velocity signals over time. The model simulates neural population dynamics on a 2D periodic grid with directionally-selective synaptic connections that enable the network to update its activity pattern in response to movement.
-
-### Key Features
-
-- **Continuous Attractor Dynamics**: Self-organizing grid patterns through recurrent Mexican Hat connectivity
-- **Path Integration**: Velocity-modulated gain produces pattern shifts that encode spatial displacement
-- **Multi-Module Support**: Simulate multiple grid cell modules with different spatial scales (1.4x scaling ratio)
-- **Flexible Models**: Switch between rate-based and spiking neural network implementations
-- **Band Cells**: Optional anisotropic kernels for directionally-selective (band) cells
-- **Comprehensive Visualization**: Automatic generation of plots showing neural activity, trajectories, and error analysis
+Python implementation the continuous attractor network framework described in Y. Burak and I. R. Fiete. [Accurate path integration in continuous attractor network models of grid cells](https://fietelabmit.files.wordpress.com/2018/12/gcdynamics_burakfiete09_plos.pdf). PLoS Comp. Biol. 5(2) (2009).
 
 ## Project Structure
 
