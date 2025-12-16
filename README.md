@@ -31,7 +31,7 @@ BurakFiete2009/
 
 1. **Clone the repository**:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/shauryagoyall/BurakFiete2009
    cd BurakFiete2009
    ```
 
@@ -62,6 +62,36 @@ jupyter notebook gc_dynamics.ipynb
 ```
 
 Then simply run all cells to execute a complete simulation with default parameters.
+
+### Example Scripts
+
+#### `example_basic.py` - Single Module Simulation
+
+A minimal example demonstrating a basic grid cell simulation with a single module. This script:
+- Configures a 128×128 neuron network with Module 1 parameters (smallest spatial scale)
+- Runs a rate-based simulation with auto-generated random trajectory
+- Calculates and displays path integration error statistics
+- Provides a template for running custom simulations with different parameters
+
+Run it with:
+```bash
+python example_basic.py
+```
+
+#### `example_multimodule.py` - Multi-Module Comparison
+
+Demonstrates running simulations across multiple grid cell modules (1-4) with different spatial scales. This script:
+- Simulates all four modules with biologically-realistic scale factors (1.4× progression)
+- Compares path integration accuracy across different grid spacings
+- Generates comprehensive visualization comparing error accumulation, trajectories, and scale effects
+- Produces a summary table showing performance metrics for each module
+
+Run it with:
+```bash
+python example_multimodule.py
+```
+
+The multi-module comparison helps understand how grid scale affects path integration accuracy and demonstrates the relationship between grid spacing and velocity gain.
 
 ### Python Script Usage
 
