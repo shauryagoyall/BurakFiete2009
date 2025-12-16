@@ -12,6 +12,8 @@ BurakFiete2009/
 ├── gc_plotting.py          # Visualization utilities
 ├── create_gif.py           # Animation creation from frames
 ├── gc_dynamics.ipynb       # Interactive Jupyter notebook
+├── example_basic.py        # Example script for basic plots
+├── example_multimodule.py  # Example script for multiple modules of grid cells and some basic plots
 ├── plots/                  # Output directory for visualizations
 │   ├── simulation/         # Activity snapshots and trajectories
 │   └── connectivity/       # Weight matrix visualizations
